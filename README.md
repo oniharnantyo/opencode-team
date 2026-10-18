@@ -49,13 +49,19 @@
   - `debugger`: Root-cause isolation and minimal green-build fixes.
   - `verifier`: Evidence-based verification gate (no self-approval).
   - `critic`: Adversarial review of plans and code diffs before acceptance.
+- **Persistent Project Memory (`memory` skill, `/memory` slash command)**:
+  - Ported from `oh-my-kiro`'s cross-session memory architecture.
+  - Per-project markdown storage under `~/.opencode/memories/projects/<slug>-<hash16>/memory/`.
+  - Session recall: auto-injects `MEMORY.md` index and update age into context.
+  - One-fact-per-file format with strict categorization (`user`, `feedback`, `project`, `reference`).
+  - Gated auto-capture with `memory-extractor` background subagent.
 - **Safety Guards (Bash Guard)**:
   - Hooks `tool.execute.before`, `shell.create.before`, and `permission.evaluate`.
   - Blocks destructive commands: `rm -rf /` or `~`, git force-push (`--force`, `-f`), system power commands (`reboot`, `shutdown`), raw disk writes (`mkfs`, `dd of=/dev/`), SQL `DROP TABLE/DATABASE`, world-writable `chmod -R 777 /`, and shell history wipes.
   - Optional auto-approval for safe read/test commands (`git status`, `ls`, `cat`, `npm test`, `pytest`, `cargo test`, `go test`, `tsc`).
 - **Dynamic Reasoning Effort**: Automatically tunes `reasoningEffort` to `"low"` for `executor-low` and `"high"` for `executor-high`.
 - **State & Compaction Resilience**: Injects `.team/state.json` reminders and replays trailing dispatch history (`.team/log.md`) after context compaction.
-- **CLI Binary (`opencode-team`)**: Inspect status, stream logs, and install agents into `.opencode/agents/`.
+- **CLI Binary (`opencode-team`)**: Inspect team status, stream logs, query project memory, and install agents into `.opencode/agents/`.
 
 ---
 
@@ -111,6 +117,9 @@ Both camelCase and oh-my-zcode `snake_case` keys are supported for backward comp
 | `idleNudge` | `idle_nudge` | `true` | Log reminders when a run goes idle with open tasks |
 | `installAgents` | `install_agents` | `false` | Copy bundled agents into `.opencode/agents/` on startup |
 | `models` | `agent_models` | `{}` | Model overrides per worker agent (e.g. `{"executor-low": "openai/gpt-4o-mini"}`) |
+| `memory` | `enable_memory` | `true` | Enable persistent per-project memory recall (`MEMORY.md`) |
+| `memoryAutoCapture` | `memory_auto_capture` | `true` | Enable gated background memory extraction after user turns |
+| `memoryDir` | `memory_dir` | `undefined` | Custom directory override for memory storage |
 
 ---
 
@@ -186,6 +195,7 @@ Worker agent files are located in `agents/` and can be discovered automatically 
 | `debugger` | Diagnostic | subagent | Root-cause analysis, stack trace isolation |
 | `verifier` | Read-only | subagent | Independent validation with fresh command evidence |
 | `critic` | Adversarial | subagent | Pre-commit quality gate reviewing plans and diffs |
+| `memory-extractor` | Extraction | subagent | Background memory distiller updating project recall |
 
 To install the bundled agents into your project's `.opencode/agents/` directory:
 
@@ -197,7 +207,7 @@ npx opencode-team agents --install
 
 ## CLI Usage
 
-The `opencode-team` binary provides quick insight into ongoing team runs:
+The `opencode-team` binary provides quick insight into ongoing team runs and project memory:
 
 ```bash
 # Check current team progress and open tasks
@@ -205,6 +215,11 @@ opencode-team status
 
 # View recent dispatch and completion logs
 opencode-team log 20
+
+# View project memory index or list memories
+opencode-team memory show
+opencode-team memory list
+opencode-team memory path
 
 # List bundled worker agents
 opencode-team agents

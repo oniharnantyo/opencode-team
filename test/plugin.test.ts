@@ -95,13 +95,13 @@ describe("plugin: lifecycle & hooks", () => {
     const cleanup = await plugin.setup(mockCtx)
     expect(typeof cleanup).toBe("function")
 
-    // Skill registered
-    expect(skillsRegistered.length).toBe(1)
-    expect(skillsRegistered[0].name).toBe("team")
+    // Skills registered (team + memory)
+    expect(skillsRegistered.length).toBe(2)
+    expect(skillsRegistered.map((s) => s.name).sort()).toEqual(["memory", "team"])
 
-    // Slash command registered
-    expect(commandsRegistered.length).toBe(1)
-    expect(commandsRegistered[0].name).toBe("team")
+    // Slash commands registered (team + memory)
+    expect(commandsRegistered.length).toBe(2)
+    expect(commandsRegistered.map((c) => c.name).sort()).toEqual(["memory", "team"])
 
     // Agent model override applied
     expect(mockCtx._agentsMap["executor-low"].model).toEqual({

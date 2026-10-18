@@ -38,6 +38,18 @@ export interface TeamOptions {
    * Model overrides per worker agent (e.g. { "executor-low": "openai/gpt-4o-mini" }).
    */
   readonly models?: Record<string, ModelTarget>
+  /**
+   * Enable persistent per-project memory system and recall.
+   */
+  readonly memory: boolean
+  /**
+   * Enable background turn stamping and auto-capture gating.
+   */
+  readonly memoryAutoCapture: boolean
+  /**
+   * Custom directory override for memory storage.
+   */
+  readonly memoryDir?: string
 }
 
 export type ModelTarget = string | { providerID?: string; provider?: string; id?: string; model?: string }
@@ -51,6 +63,8 @@ const DEFAULTS: TeamOptions = {
   stateReminder: true,
   idleNudge: true,
   installAgents: false,
+  memory: true,
+  memoryAutoCapture: true,
 }
 
 function pick(raw: Record<string, unknown>, ...keys: string[]): unknown {
@@ -94,5 +108,11 @@ export function resolveOptions(raw: Record<string, unknown> | undefined): TeamOp
     idleNudge: parseToggle(pick(source, "idle_nudge", "idleNudge"), DEFAULTS.idleNudge),
     installAgents: parseToggle(pick(source, "install_agents", "installAgents"), DEFAULTS.installAgents),
     models: parseModels(pick(source, "models", "agent_models", "agentModels")),
+    memory: parseToggle(pick(source, "memory", "enable_memory", "enableMemory"), DEFAULTS.memory),
+    memoryAutoCapture: parseToggle(
+      pick(source, "memory_auto_capture", "memoryAutoCapture", "auto_capture", "autoCapture"),
+      DEFAULTS.memoryAutoCapture,
+    ),
+    memoryDir: (pick(source, "memory_dir", "memoryDir") as string | undefined)?.trim() || undefined,
   }
 }

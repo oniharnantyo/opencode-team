@@ -1,6 +1,9 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto"
+import { existsSync } from "node:fs"
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises"
-import { dirname, join, resolve } from "node:path"
+import { homedir } from "node:os"
+import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -15,6 +18,7 @@ Usage:
 Commands:
   status [dir]       Show active team state, progress, and tasks (default dir: .team)
   log [lines]        Show trailing lines from .team/log.md (default: 20)
+  memory [subcmd]    Inspect project memory (show, list, path)
   agents             List bundled worker agents
   agents --install   Install bundled agents into .opencode/agents/ in the current project
   init [goal]        Initialize .team/state.json and .team/handoffs/ workspace
@@ -30,6 +34,7 @@ function parseArgs(args) {
   let count = 20
   let goal = ""
   let install = false
+  let subcmd = ""
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
@@ -48,6 +53,10 @@ function parseArgs(args) {
       command = arg
       continue
     }
+    if (command === "memory" && !subcmd && !arg.startsWith("-")) {
+      subcmd = arg
+      continue
+    }
     if (command === "log" && /^\d+$/.test(arg)) {
       count = Number.parseInt(arg, 10)
       continue
@@ -62,7 +71,7 @@ function parseArgs(args) {
     }
   }
 
-  return { command, teamDir, count, goal, install }
+  return { command, teamDir, count, goal, install, subcmd }
 }
 
 async function readJson(path) {
@@ -205,9 +214,62 @@ async function cmdInit(teamDir, goalText) {
   console.log(`Tip: Add "${teamDir}/" to your .gitignore.\n`)
 }
 
+function getMemoryRoot(projectDir = process.cwd()) {
+  const abs = resolve(projectDir)
+  const slug = basename(abs).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project"
+  const hash = createHash("sha256").update(abs).digest("hex").slice(0, 16)
+  const key = `${slug}-${hash}`
+  const home = homedir()
+  const kiroPath = join(home, ".kiro", "memories", "projects", key, "memory")
+  if (existsSync(kiroPath)) return kiroPath
+  return join(home, ".opencode", "memories", "projects", key, "memory")
+}
+
+async function cmdMemory(subcmd) {
+  const root = getMemoryRoot()
+
+  if (subcmd === "path") {
+    console.log(root)
+    return
+  }
+
+  if (subcmd === "list") {
+    if (!existsSync(root)) {
+      console.log(`\nNo memories directory found for this project at:\n${root}\n`)
+      return
+    }
+    const files = (await readdir(root)).filter((f) => f.endsWith(".md") && f !== "MEMORY.md")
+    if (files.length === 0) {
+      console.log(`\nNo memory files found at ${root}\n`)
+      return
+    }
+    console.log(`\n=== Project Memories (${files.length}) ===`)
+    console.log(`Location: ${root}\n`)
+    for (const f of files) {
+      console.log(`- ${f}`)
+    }
+    console.log("")
+    return
+  }
+
+  // Default: show MEMORY.md
+  const indexPath = join(root, "MEMORY.md")
+  if (!existsSync(indexPath)) {
+    console.log(`\nNo MEMORY.md index found for this project at:\n${root}\n`)
+    console.log(`Use the /memory skill in OpenCode to save your first memory.\n`)
+    return
+  }
+
+  const content = await readFile(indexPath, "utf8")
+  console.log(`\n=== Project Memory Index ===`)
+  console.log(`Location: ${root}\n`)
+  console.log(content.trim())
+  console.log("")
+}
+
 async function main() {
   const args = process.argv.slice(2)
-  const { command, teamDir, count, goal, install } = parseArgs(args)
+  const { command, teamDir, count, goal, install, subcmd } = parseArgs(args)
 
   switch (command) {
     case "help":
@@ -218,6 +280,9 @@ async function main() {
       break
     case "log":
       await cmdLog(teamDir, count)
+      break
+    case "memory":
+      await cmdMemory(subcmd)
       break
     case "agents":
       await cmdAgents(install)

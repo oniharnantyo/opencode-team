@@ -15,7 +15,7 @@ describe("install: bundled agents", () => {
     await rm(tmpDir, { recursive: true, force: true })
   })
 
-  it("lists all 7 expected worker agent definition files", async () => {
+  it("lists all 8 expected worker agent definition files", async () => {
     const agents = await listBundledAgents()
     expect(agents.sort()).toEqual([
       "critic.md",
@@ -23,6 +23,7 @@ describe("install: bundled agents", () => {
       "executor-high.md",
       "executor-low.md",
       "executor-medium.md",
+      "memory-extractor.md",
       "planner.md",
       "verifier.md",
     ])
@@ -30,11 +31,12 @@ describe("install: bundled agents", () => {
 
   it("copies bundled agents into target .opencode/agents/", async () => {
     const installed = await installAgents(tmpDir)
-    expect(installed.length).toBe(7)
+    expect(installed.length).toBe(8)
 
     const writtenFiles = await readdir(join(tmpDir, ".opencode", "agents"))
-    expect(writtenFiles.length).toBe(7)
+    expect(writtenFiles.length).toBe(8)
     expect(writtenFiles).toContain("planner.md")
     expect(writtenFiles).toContain("verifier.md")
+    expect(writtenFiles).toContain("memory-extractor.md")
   })
 })

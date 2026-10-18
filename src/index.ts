@@ -24,6 +24,17 @@ export { findDenyRule, isAutoApprovable } from "./guard"
 export { installAgents, listBundledAgents } from "./install"
 export { resolveOptions, type TeamOptions } from "./options"
 export * from "./state"
+export * from "./memory/index"
+
+import {
+  acquireLock,
+  checkExtractionGates,
+  formatMemoryContext,
+  releaseLock,
+  resolveMemoryRoot,
+  stampTurn,
+  touchLastExtraction,
+} from "./memory/index"
 
 const SHELL_TOOLS = new Set(["bash", "execute", "shell", "terminal", "run_command", "run_shell_command"])
 const SUBAGENT_TOOLS = new Set(["subagent", "agent", "task"])
@@ -38,13 +49,14 @@ export default Plugin.define({
     const options = resolveOptions(ctx.options as Record<string, unknown> | undefined)
     const projectDir = ctx.location?.directory ?? process.cwd()
     const teamDir = teamDirPath(projectDir, options.teamDir)
+    const memoryRoot = resolveMemoryRoot(projectDir, options.memoryDir)
 
     // Optionally install bundled agents into .opencode/agents/
     if (options.installAgents) {
       void installAgents(projectDir).catch(() => {})
     }
 
-    // Register team skill
+    // Register skills: team + memory
     ctx.skill.transform((editor) => {
       let content = FALLBACK_SKILL_CONTENT
       const skillPath = join(BUNDLED_SKILLS_DIR, "team", "SKILL.md")
@@ -64,9 +76,30 @@ export default Plugin.define({
           content,
         }),
       )
+
+      if (options.memory) {
+        let memContent = "# Memory — Persistent Project Recall\n"
+        const memPath = join(BUNDLED_SKILLS_DIR, "memory", "SKILL.md")
+        try {
+          memContent = readFileSync(memPath, "utf8")
+        } catch {
+          // Fallback to minimal content
+        }
+
+        editor.add(
+          Skill.Info.make({
+            id: "memory" as any,
+            name: "memory" as any,
+            description: "Save, recall, and forget persistent cross-session memories",
+            autoinvoke: false,
+            path: memPath as any,
+            content: memContent,
+          }),
+        )
+      }
     })
 
-    // Register /team slash command
+    // Register slash commands: /team + /memory
     ctx.command.transform((editor) => {
       editor.add({
         name: "team",
@@ -82,6 +115,23 @@ export default Plugin.define({
           })
         },
       })
+
+      if (options.memory) {
+        editor.add({
+          name: "memory",
+          description: "Manage persistent memories (save, forget, show, list)",
+          async execute(inv) {
+            const text = inv.prompt?.text?.trim() ?? ""
+            const promptText = text
+              ? `Use the memory skill to handle this memory instruction: ${text}`
+              : "Use the memory skill to show the current project memory index and memories."
+            await ctx.session.prompt({
+              sessionID: inv.sessionID,
+              text: promptText,
+            })
+          },
+        })
+      }
     })
 
     // Register agent model overrides if specified in plugin options
@@ -117,7 +167,17 @@ export default Plugin.define({
       })
     }
 
-    // Hook session context: inject state reminder and tune reasoning effort
+    // Hook session prompt: stamp turn for memory auto-capture gate
+    if (options.memory && options.memoryAutoCapture) {
+      ctx.session.hook("prompt", async (event) => {
+        const text = (event.prompt as { text?: string } | undefined)?.text ?? ""
+        if (text) {
+          await stampTurn(memoryRoot, text)
+        }
+      })
+    }
+
+    // Hook session context: inject state reminder, memory recall index, and tune reasoning effort
     ctx.session.hook("context", async (event) => {
       const agentId = String(event.agent ?? "").toLowerCase()
       if (agentId.includes("executor-low")) {
@@ -132,6 +192,16 @@ export default Plugin.define({
           event.system.push({
             type: "text",
             text: reminderText(state, options.teamDir),
+          })
+        }
+      }
+
+      if (options.memory) {
+        const memoryContext = await formatMemoryContext(memoryRoot)
+        if (memoryContext) {
+          event.system.push({
+            type: "text",
+            text: memoryContext,
           })
         }
       }
@@ -263,6 +333,16 @@ export default Plugin.define({
                     teamDir,
                     `[${timestamp()}] IDLE: session idle with ${open.length}/${total} tasks open`,
                   )
+                }
+              }
+
+              // Memory auto-capture evaluation
+              if (options.memory && options.memoryAutoCapture) {
+                const gates = await checkExtractionGates(memoryRoot)
+                if (gates.canExtract) {
+                  await acquireLock(memoryRoot)
+                  await touchLastExtraction(memoryRoot)
+                  await releaseLock(memoryRoot)
                 }
               }
             }
