@@ -21,26 +21,44 @@ export function projectKey(projectDir: string): string {
   return `${slugify(basename(abs))}-${hash}`
 }
 
+export function expandHome(pathStr: string): string {
+  if (pathStr === "~") return homedir()
+  if (pathStr.startsWith("~/") || pathStr.startsWith("~\\")) {
+    return join(homedir(), pathStr.slice(2))
+  }
+  return pathStr
+}
+
 /**
  * Returns the project memory directory path.
- * Checks for an existing ~/.kiro/memories/projects/... directory first for backward compatibility,
- * otherwise defaults to ~/.opencode/memories/projects/<slug>-<hash16>/memory.
+ * Base directory defaults to ~/.opencode/memories (projects/<slug>-<hash16>/memory).
+ * Checks for an existing ~/.kiro/memories/projects/... directory first for backward compatibility.
  */
-export function resolveMemoryRoot(projectDir: string, customBaseDir?: string): string {
+export function resolveMemoryRoot(projectDir: string, customBaseDir = "~/.opencode/memories"): string {
   const key = projectKey(projectDir)
   const home = homedir()
 
-  if (customBaseDir) {
-    return resolve(customBaseDir, key, "memory")
+  const expandedBase = resolve(expandHome(customBaseDir))
+
+  // If customBaseDir already points directly to a memory folder
+  if (basename(expandedBase) === "memory") {
+    return expandedBase
   }
 
-  // Check if ~/.kiro memory already exists for this project (backward compatibility)
-  const kiroPath = join(home, ".kiro", "memories", "projects", key, "memory")
-  if (existsSync(kiroPath)) {
-    return kiroPath
+  // Check if ~/.kiro memory already exists for this project (backward compatibility when using default)
+  if (customBaseDir === "~/.opencode/memories") {
+    const kiroPath = join(home, ".kiro", "memories", "projects", key, "memory")
+    if (existsSync(kiroPath)) {
+      return kiroPath
+    }
   }
 
-  return join(home, ".opencode", "memories", "projects", key, "memory")
+  // If expandedBase already ends with "projects", don't repeat "projects"
+  if (basename(expandedBase) === "projects") {
+    return join(expandedBase, key, "memory")
+  }
+
+  return join(expandedBase, "projects", key, "memory")
 }
 
 /**

@@ -119,7 +119,7 @@ Both camelCase and oh-my-zcode `snake_case` keys are supported for backward comp
 | `models` | `agent_models` | `{}` | Model overrides per worker agent (e.g. `{"executor-low": "openai/gpt-4o-mini"}`) |
 | `memory` | `enable_memory` | `true` | Enable persistent per-project memory recall (`MEMORY.md`) |
 | `memoryAutoCapture` | `memory_auto_capture` | `true` | Enable gated background memory extraction after user turns |
-| `memoryDir` | `memory_dir` | `undefined` | Custom directory override for memory storage |
+| `memoryDir` | `memory_dir` | `"~/.opencode/memories"` | Base directory for memory storage |
 
 ---
 

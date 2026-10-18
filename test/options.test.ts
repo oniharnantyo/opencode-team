@@ -12,6 +12,9 @@ describe("options: resolveOptions", () => {
     expect(opts.stateReminder).toBe(true)
     expect(opts.idleNudge).toBe(true)
     expect(opts.installAgents).toBe(false)
+    expect(opts.memory).toBe(true)
+    expect(opts.memoryAutoCapture).toBe(true)
+    expect(opts.memoryDir).toBe("~/.opencode/memories")
   })
 
   it("supports oh-my-zcode snake_case options for backward compatibility", () => {

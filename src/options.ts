@@ -47,9 +47,9 @@ export interface TeamOptions {
    */
   readonly memoryAutoCapture: boolean
   /**
-   * Custom directory override for memory storage.
+   * Base directory for memory storage. Default: "~/.opencode/memories".
    */
-  readonly memoryDir?: string
+  readonly memoryDir: string
 }
 
 export type ModelTarget = string | { providerID?: string; provider?: string; id?: string; model?: string }
@@ -65,6 +65,7 @@ const DEFAULTS: TeamOptions = {
   installAgents: false,
   memory: true,
   memoryAutoCapture: true,
+  memoryDir: "~/.opencode/memories",
 }
 
 function pick(raw: Record<string, unknown>, ...keys: string[]): unknown {
@@ -113,6 +114,6 @@ export function resolveOptions(raw: Record<string, unknown> | undefined): TeamOp
       pick(source, "memory_auto_capture", "memoryAutoCapture", "auto_capture", "autoCapture"),
       DEFAULTS.memoryAutoCapture,
     ),
-    memoryDir: (pick(source, "memory_dir", "memoryDir") as string | undefined)?.trim() || undefined,
+    memoryDir: (pick(source, "memory_dir", "memoryDir") as string | undefined)?.trim() || DEFAULTS.memoryDir,
   }
 }

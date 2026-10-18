@@ -49,6 +49,18 @@ describe("memory: paths", () => {
     expect(root).toContain("/custom/base")
     expect(root).toContain("memory")
   })
+
+  it("resolves default memory root under ~/.opencode/memories", () => {
+    const root = resolveMemoryRoot("/my/project")
+    expect(root).toContain(".opencode/memories/projects")
+    expect(root.endsWith("/memory")).toBe(true)
+  })
+
+  it("expands ~ in customBaseDir", () => {
+    const root = resolveMemoryRoot("/my/project", "~/.opencode/memories")
+    expect(root).not.toContain("~")
+    expect(root).toContain(".opencode/memories/projects")
+  })
 })
 
 describe("memory: store & recall", () => {
