@@ -110,8 +110,68 @@ Both camelCase and oh-my-zcode `snake_case` keys are supported for backward comp
 | `stateReminder` | `state_reminder` | `true` | Inject active goal and progress into context |
 | `idleNudge` | `idle_nudge` | `true` | Log reminders when a run goes idle with open tasks |
 | `installAgents` | `install_agents` | `false` | Copy bundled agents into `.opencode/agents/` on startup |
+| `models` | `agent_models` | `{}` | Model overrides per worker agent (e.g. `{"executor-low": "openai/gpt-4o-mini"}`) |
 
 ---
+
+### 3. Configuring Agent Models
+
+You can configure models for the team worker agents in three flexible ways:
+
+#### Option A: Inside Plugin Options (`opencode.json` / `opencode.jsonc`)
+
+Override models directly under the plugin configuration:
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "opencode-team",
+      "options": {
+        "models": {
+          "planner": "anthropic/claude-3-7-sonnet",
+          "executor-low": "openai/gpt-4o-mini",
+          "executor-medium": "anthropic/claude-3-7-sonnet",
+          "executor-high": "anthropic/claude-3-7-sonnet",
+          "debugger": "anthropic/claude-3-7-sonnet",
+          "verifier": "anthropic/claude-3-7-sonnet",
+          "critic": "anthropic/claude-3-7-sonnet"
+        }
+      }
+    }
+  ]
+}
+```
+
+#### Option B: OpenCode Top-Level `agents` Block (`opencode.json`)
+
+OpenCode natively allows configuring model, system prompt, or options for any agent:
+
+```jsonc
+{
+  "agents": {
+    "executor-low": {
+      "model": "openai/gpt-4o-mini"
+    },
+    "executor-high": {
+      "model": "anthropic/claude-3-7-sonnet"
+    }
+  }
+}
+```
+
+#### Option C: Agent Markdown Frontmatter (`.opencode/agents/<name>.md`)
+
+Specify `model` directly in the frontmatter of any agent definition:
+
+```yaml
+---
+name: executor-low
+description: Fast implementation worker
+mode: subagent
+model: openai/gpt-4o-mini
+---
+```
 
 ## Worker Agents
 

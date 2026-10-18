@@ -35,6 +35,9 @@ describe("plugin: lifecycle & hooks", () => {
         bash_guard: true,
         auto_approve_safe_commands: true,
         team_dir: ".team",
+        models: {
+          "executor-low": "openai/gpt-4o-mini",
+        },
       },
       skill: {
         transform: (fn: any) =>
@@ -47,6 +50,19 @@ describe("plugin: lifecycle & hooks", () => {
           fn({
             add: (cmd: any) => commandsRegistered.push(cmd),
           }),
+      },
+      agent: {
+        transform: (fn: any) => {
+          const agentsMap: Record<string, any> = {
+            "executor-low": { id: "executor-low", name: "executor-low" },
+          }
+          fn({
+            update: (id: string, updater: any) => {
+              if (agentsMap[id]) updater(agentsMap[id])
+            },
+          })
+          mockCtx._agentsMap = agentsMap
+        },
       },
       session: {
         hook: (name: string, handler: Function) => {
@@ -86,6 +102,12 @@ describe("plugin: lifecycle & hooks", () => {
     // Slash command registered
     expect(commandsRegistered.length).toBe(1)
     expect(commandsRegistered[0].name).toBe("team")
+
+    // Agent model override applied
+    expect(mockCtx._agentsMap["executor-low"].model).toEqual({
+      providerID: "openai",
+      id: "gpt-4o-mini",
+    })
 
     // Session hooks
     expect(sessionHooks["context"]).toBeDefined()

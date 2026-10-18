@@ -84,6 +84,39 @@ export default Plugin.define({
       })
     })
 
+    // Register agent model overrides if specified in plugin options
+    if (options.models && ctx.agent?.transform) {
+      ctx.agent.transform((editor) => {
+        for (const [agentName, modelDef] of Object.entries(options.models ?? {})) {
+          editor.update(agentName, (agent) => {
+            if (typeof modelDef === "string") {
+              const slash = modelDef.indexOf("/")
+              if (slash !== -1) {
+                agent.model = {
+                  providerID: modelDef.slice(0, slash) as any,
+                  id: modelDef.slice(slash + 1) as any,
+                }
+              } else {
+                agent.model = {
+                  providerID: "default" as any,
+                  id: modelDef as any,
+                }
+              }
+            } else if (modelDef && typeof modelDef === "object") {
+              const provider = (modelDef.providerID ?? modelDef.provider ?? "default") as string
+              const modelId = (modelDef.id ?? modelDef.model ?? "") as string
+              if (modelId) {
+                agent.model = {
+                  providerID: provider as any,
+                  id: modelId as any,
+                }
+              }
+            }
+          })
+        }
+      })
+    }
+
     // Hook session context: inject state reminder and tune reasoning effort
     ctx.session.hook("context", async (event) => {
       const agentId = String(event.agent ?? "").toLowerCase()

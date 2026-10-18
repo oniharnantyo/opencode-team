@@ -34,7 +34,13 @@ export interface TeamOptions {
    * Prefer `npx opencode-team agents`, or turn this on for managed setups.
    */
   readonly installAgents: boolean
+  /**
+   * Model overrides per worker agent (e.g. { "executor-low": "openai/gpt-4o-mini" }).
+   */
+  readonly models?: Record<string, ModelTarget>
 }
+
+export type ModelTarget = string | { providerID?: string; provider?: string; id?: string; model?: string }
 
 const DEFAULTS: TeamOptions = {
   bashGuard: true,
@@ -59,6 +65,19 @@ function positiveInt(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
 }
 
+function parseModels(value: unknown): Record<string, ModelTarget> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const result: Record<string, ModelTarget> = {}
+  for (const [k, v] of Object.entries(value)) {
+    if (typeof v === "string" && v.trim()) {
+      result[k] = v.trim()
+    } else if (v && typeof v === "object" && !Array.isArray(v)) {
+      result[k] = v as ModelTarget
+    }
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
 export function resolveOptions(raw: Record<string, unknown> | undefined): TeamOptions {
   const source = raw ?? {}
   const teamDir = String(pick(source, "team_dir", "teamDir") ?? DEFAULTS.teamDir).trim()
@@ -74,5 +93,6 @@ export function resolveOptions(raw: Record<string, unknown> | undefined): TeamOp
     stateReminder: parseToggle(pick(source, "state_reminder", "stateReminder"), DEFAULTS.stateReminder),
     idleNudge: parseToggle(pick(source, "idle_nudge", "idleNudge"), DEFAULTS.idleNudge),
     installAgents: parseToggle(pick(source, "install_agents", "installAgents"), DEFAULTS.installAgents),
+    models: parseModels(pick(source, "models", "agent_models", "agentModels")),
   }
 }

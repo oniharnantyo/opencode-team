@@ -61,4 +61,16 @@ describe("options: resolveOptions", () => {
     expect(opts.maxWorkers).toBe(4)
     expect(opts.logTail).toBe(10)
   })
+
+  it("parses model overrides per agent", () => {
+    const opts = resolveOptions({
+      models: {
+        "executor-low": "openai/gpt-4o-mini",
+        "executor-high": { providerID: "anthropic", id: "claude-3-7-sonnet" },
+      },
+    })
+    expect(opts.models).toBeDefined()
+    expect(opts.models?.["executor-low"]).toBe("openai/gpt-4o-mini")
+    expect(opts.models?.["executor-high"]).toEqual({ providerID: "anthropic", id: "claude-3-7-sonnet" })
+  })
 })
